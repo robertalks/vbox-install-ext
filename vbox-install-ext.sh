@@ -17,6 +17,7 @@
 #
 
 name="$(basename $0)"
+id="$(id -u 2>/dev/null || echo 1)"
 tmpdir="/tmp/ext.$$"
 
 function usage()
@@ -63,10 +64,15 @@ while getopts "hv:d" opt; do
 done
 
 version="$(vbox_version)"
+cmd=""
 
 if [ -z "$version" ]; then
 	echo "$0: possibily VirtualBox is not installed." >&2
 	exit 1
+fi
+
+if [ $id -ne 0 ]; then
+	cmd="sudo"
 fi
 
 [ -d "$tmpdir" ] || mkdir -p $tmpdir 2>/dev/null
@@ -77,7 +83,7 @@ echo "Downloading extension pack... (Oracle_VM_VirtualBox_Extension_Pack-$versio
    { echo "$0: failed to download extension pack" >&2; rm -fr $tmpdir 2>/dev/null; exit 1; }
 
 echo "Installing extension pack..."
-/usr/bin/VBoxManage extpack install \
+$cmd /usr/bin/VBoxManage extpack install \
    $tmpdir/Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack 2>/dev/null || \
    { echo "$0: failed to install extension pack" >&2; rm -fr $tmpdir 2>/dev/null; exit 1; }
 
