@@ -22,8 +22,7 @@ id="$(id -u 2>/dev/null || echo 1)"
 debug=0
 tmpdir="/tmp/ext.$$"
 
-function usage()
-{
+usage() {
 	cat << EOF
 $name: download and install Oracle VirtualBox Extension pack
 
@@ -42,10 +41,54 @@ Example:
 EOF
 }
 
-function get_vbox_version()
-{
+get_vbox_version() {
 	local version="$(VBoxManage -v 2>/dev/null | grep '^[0-9].*' | sed '/^[0-9].*/ s/r.*//g')"
 	echo $version
+}
+
+generate_url() {
+	local version="$1"
+	local url=""
+
+	[ -z "$version" ] && return 1
+
+	url="http://download.virtualbox.org/virtualbox/$version/Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack"
+	echo $url
+}
+
+download_ext() {
+	local version="$1"
+	local url=""
+	local fname=""
+
+	[ -z $version ] && return 1
+
+	url="$(generate_url $version)"
+	fname="Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack"
+
+	/usr/bin/wget $url -O $tmpdir/$fname >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+}
+
+install_ext() {
+	local version="$1"
+	local cmd="$2"
+	local fname=""
+
+	[ -z $version ] && return 1
+
+	fname="Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack"
+
+	$cmd /usr/bin/VBoxManage extpack install $tmpdir/$fname >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "Installation failed, trying to replace extension package..."
+		$cmd /usr/bin/VBoxManage extpack install --replace $tmpdir/$fname >/dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			return 1
+		fi
+	fi
 }
 
 if [ ! -x /usr/bin/VBoxManage ]; then
@@ -89,14 +132,18 @@ fi
 
 [ -d "$tmpdir" ] || mkdir -p $tmpdir 2>/dev/null
 
-echo "Downloading extension pack... (Oracle_VM_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack)"
-/usr/bin/wget http://download.virtualbox.org/virtualbox/$vbox_version/Oracle_VM_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack \
-   -O $tmpdir/Oracle_VM_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack 2>/dev/null || \
-   { echo "$name: failed to download extension pack" >&2; rm -fr $tmpdir 2>/dev/null; exit 1; }
+echo "Downloading extension pack..."
+if ! download_ext $vbox_version; then
+	echo "$name: failed to download extension pack" >&2
+	rm -fr $tmpdir 2>/dev/null
+	exit 1
+fi
 
 echo "Installing extension pack..."
-$cmd /usr/bin/VBoxManage extpack install \
-   $tmpdir/Oracle_VM_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack 2>/dev/null || \
-   { echo "$name: failed to install extension pack" >&2; rm -fr $tmpdir 2>/dev/null; exit 1; }
+if ! install_ext $vbox_version $cmd; then
+	echo "$name: failed to install extension pack (2 tries)" >&2
+	rm -fr $tmpdir 2>/dev/null
+	exit 1
+fi
 
 rm -fr $tmpdir 2>/dev/null
