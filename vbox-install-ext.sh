@@ -17,7 +17,7 @@
 #
 
 name="$(basename $0)"
-version="0.3"
+version="0.4"
 id="$(id -u 2>/dev/null || echo 1)"
 debug=0
 tmpdir="/tmp/ext.$$"
@@ -42,7 +42,7 @@ EOF
 }
 
 get_vbox_version() {
-	local version="$(VBoxManage -v 2>/dev/null | grep '^[0-9].*' | sed '/^[0-9].*/ s/r.*//g')"
+	local version="$(VBoxManage -v 2>/dev/null | grep -o '^[0-9].*' | sed 's/r.*//g')"
 	echo $version
 }
 
