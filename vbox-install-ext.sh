@@ -17,7 +17,7 @@
 #
 
 name="$(basename $0)"
-version="0.4"
+version="0.5"
 id="$(id -u 2>/dev/null || echo 1)"
 debug=0
 tmpdir="/tmp/ext.$$"
@@ -42,29 +42,41 @@ EOF
 }
 
 get_vbox_version() {
-	local version="$(VBoxManage -v 2>/dev/null | grep -o '^[0-9].*' | sed 's/r.*//g')"
-	echo $version
+	local vbox_version="$(VBoxManage -v 2>/dev/null | grep -o '^[0-9].*' | sed 's/r.*//g')"
+	echo $vbox_version
+}
+
+generate_name() {
+	local vbox_version="$1"
+	local fname=""
+
+	[ -z "$vbox_version" ] && return 1
+
+	fname="Oracle_VM_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack"
+	echo $fname
 }
 
 generate_url() {
-	local version="$1"
+	local vbox_version="$1"
 	local url=""
+	local fname=""
 
-	[ -z "$version" ] && return 1
+	[ -z "$vbox_version" ] && return 1
 
-	url="http://download.virtualbox.org/virtualbox/$version/Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack"
+	fname="$(generate_name $vbox_version)"
+	url="http://download.virtualbox.org/virtualbox/$vbox_version/$fname"
 	echo $url
 }
 
 download_ext() {
-	local version="$1"
+	local vbox_version="$1"
 	local url=""
 	local fname=""
 
-	[ -z $version ] && return 1
+	[ -z $vbox_version ] && return 1
 
-	url="$(generate_url $version)"
-	fname="Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack"
+	url="$(generate_url $vbox_version)"
+	fname="$(generate_name $vbox_version)"
 
 	/usr/bin/wget $url -O $tmpdir/$fname >/dev/null 2>&1
 	if [ $? -ne 0 ]; then
@@ -73,17 +85,17 @@ download_ext() {
 }
 
 install_ext() {
-	local version="$1"
+	local vbox_version="$1"
 	local cmd="$2"
 	local fname=""
 
-	[ -z $version ] && return 1
+	[ -z $vbox_version ] && return 1
 
-	fname="Oracle_VM_VirtualBox_Extension_Pack-$version.vbox-extpack"
+	fname="$(generate_name $vbox_version)"
 
 	$cmd /usr/bin/VBoxManage extpack install $tmpdir/$fname >/dev/null 2>&1
 	if [ $? -ne 0 ]; then
-		echo "Installation failed, trying to replace extension package..."
+		echo "Installation failed, trying to replace extension package ..."
 		$cmd /usr/bin/VBoxManage extpack install --replace $tmpdir/$fname >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			return 1
@@ -132,14 +144,17 @@ fi
 
 [ -d "$tmpdir" ] || mkdir -p $tmpdir 2>/dev/null
 
-echo "Downloading extension pack..."
+fname="$(generate_name $vbox_version)"
+
+echo "VirtualBox $vbox_version (extension: $fname)"
+echo "Downloading extension pack ..."
 if ! download_ext $vbox_version; then
 	echo "$name: failed to download extension pack" >&2
 	rm -fr $tmpdir 2>/dev/null
 	exit 1
 fi
 
-echo "Installing extension pack..."
+echo "Installing extension pack ..."
 if ! install_ext $vbox_version $cmd; then
 	echo "$name: failed to install extension pack (2 tries)" >&2
 	rm -fr $tmpdir 2>/dev/null
