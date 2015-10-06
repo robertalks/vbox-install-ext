@@ -22,6 +22,8 @@ id="$(id -u 2>/dev/null || echo 1)"
 debug=0
 tmpdir="/tmp/ext.$$"
 
+echo_error() { echo "$name: error: $@" >&2; }
+
 usage() {
 	cat << EOF
 $name: download and install Oracle VirtualBox Extension pack
@@ -104,7 +106,7 @@ install_ext() {
 }
 
 if [ ! -x /usr/bin/VBoxManage ]; then
-	echo "$name: /usr/bin/VBoxManage binary not found, exiting."
+	echo_error "/usr/bin/VBoxManage binary not found, exiting."
 	exit 1
 fi
 
@@ -133,7 +135,7 @@ fi
 
 vbox_version="$(get_vbox_version)"
 if [ -z "$vbox_version" ]; then
-	echo "$name: failed to get VBox version." >&2
+	echo_error "failed to get VBox version."
 	exit 1
 fi
 
@@ -149,14 +151,14 @@ fname="$(generate_name $vbox_version)"
 echo "VirtualBox $vbox_version (extension: $fname)"
 echo "Downloading extension pack ..."
 if ! download_ext $vbox_version; then
-	echo "$name: failed to download extension pack" >&2
+	echo_error "failed to download extension pack."
 	rm -fr $tmpdir 2>/dev/null
 	exit 1
 fi
 
 echo "Installing extension pack ..."
 if ! install_ext $vbox_version $cmd; then
-	echo "$name: failed to install extension pack (2 tries)" >&2
+	echo_error "failed to install extension pack (2 tries)."
 	rm -fr $tmpdir 2>/dev/null
 	exit 1
 fi
