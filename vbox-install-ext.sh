@@ -17,7 +17,7 @@
 #
 
 name="$(basename $0)"
-version="0.5"
+version="0.6"
 id="$(id -u 2>/dev/null || echo 1)"
 debug=0
 tmpdir="/tmp/ext.$$"
@@ -44,7 +44,7 @@ EOF
 }
 
 get_vbox_version() {
-	local vbox_version="$(VBoxManage -v 2>/dev/null | grep -o '^[0-9].*' | sed 's/r.*//g')"
+	local vbox_version="$(VBoxManage -v 2>/dev/null | sed 's/[A-Za-z_].*$//g')"
 	echo $vbox_version
 }
 
@@ -117,7 +117,7 @@ while getopts "hvd" opt; do
 		  exit 0
 		;;
 		v)
-		  echo "$name $version (VirtualBox $(VBoxManage -v 2>/dev/null | grep '^[0-9].*'))"
+		  echo "$name $version (VirtualBox $(VBoxManage -v 2>/dev/null))"
 		  exit 0
 		;;
 		d)
