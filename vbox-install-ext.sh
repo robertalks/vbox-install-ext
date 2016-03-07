@@ -17,12 +17,13 @@
 #
 
 name="$(basename $0)"
-version="0.6"
+version="0.7"
 id="$(id -u 2>/dev/null || echo 1)"
-debug=0
+use_force=0
+use_debug=0
 tmpdir="/tmp/ext.$$"
 
-echo_error() { echo "$name: error: $@" >&2; }
+echo_error() { echo "error: $@" >&2; }
 
 usage() {
 	cat << EOF
@@ -32,6 +33,7 @@ Usage: $name [OPTIONS] ...
 
         -h             Show help
         -v             Show version
+        -f             Force installation
         -d             Enable debug
                        (default: diabled)
 
@@ -82,6 +84,7 @@ download_ext() {
 
 	/usr/bin/wget $url -O $tmpdir/$fname >/dev/null 2>&1
 	if [ $? -ne 0 ]; then
+		echo_error "failed to download extension pack."
 		return 1
 	fi
 }
@@ -97,9 +100,14 @@ install_ext() {
 
 	$cmd /usr/bin/VBoxManage extpack install $tmpdir/$fname >/dev/null 2>&1
 	if [ $? -ne 0 ]; then
-		echo "Installation failed, trying to replace extension package ..."
-		$cmd /usr/bin/VBoxManage extpack install --replace $tmpdir/$fname >/dev/null 2>&1
-		if [ $? -ne 0 ]; then
+		if [ $use_force -eq 1 ]; then
+			echo "Forcing installation of the extension pack ..."
+			$cmd /usr/bin/VBoxManage extpack install --replace $tmpdir/$fname >/dev/null 2>&1
+			if [ $? -ne 0 ]; then
+				return 1
+			fi
+		else
+			echo_error "installation failed, use -f option to force installation."
 			return 1
 		fi
 	fi
@@ -110,7 +118,7 @@ if [ ! -x /usr/bin/VBoxManage ]; then
 	exit 1
 fi
 
-while getopts "hvd" opt; do
+while getopts "hvfd" opt; do
 	case "$opt" in
 		h)
 		  usage
@@ -120,8 +128,11 @@ while getopts "hvd" opt; do
 		  echo "$name $version (VirtualBox $(VBoxManage -v 2>/dev/null))"
 		  exit 0
 		;;
+		f)
+		  use_force=1
+		;;
 		d)
-		  debug=1
+		  use_debug=1
 		;;
 		*)
 		  exit 1
@@ -129,7 +140,7 @@ while getopts "hvd" opt; do
 	esac
 done
 
-if [ $debug -eq 1 ]; then
+if [ $use_debug -eq 1 ]; then
 	set -x
 fi
 
@@ -151,14 +162,12 @@ fname="$(generate_name $vbox_version)"
 echo "VirtualBox $vbox_version (extension: $fname)"
 echo "Downloading extension pack ..."
 if ! download_ext $vbox_version; then
-	echo_error "failed to download extension pack."
 	rm -fr $tmpdir 2>/dev/null
 	exit 1
 fi
 
 echo "Installing extension pack ..."
 if ! install_ext $vbox_version $cmd; then
-	echo_error "failed to install extension pack (2 tries)."
 	rm -fr $tmpdir 2>/dev/null
 	exit 1
 fi
