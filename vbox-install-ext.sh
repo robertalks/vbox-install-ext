@@ -17,11 +17,12 @@
 #
 
 name="$(basename $0)"
-version="0.7"
+version="0.8"
 id="$(id -u 2>/dev/null || echo 1)"
 use_force=0
 use_debug=0
 tmpdir="/tmp/ext.$$"
+vboxbin=""
 
 echo_error() { echo "error: $@" >&2; }
 
@@ -45,8 +46,24 @@ Example:
 EOF
 }
 
+vbox_binary() {
+	local os="$(uname -o)"
+
+	case "$os" in
+		Darwin)
+			vboxbin=/Applications/VirtualBox.app/Contents/MacOS/VBoxManage
+		;;
+		Linux)
+			vboxbin=/usr/bin/VBoxManage
+		;;
+		*)
+			vboxbin=""
+		;;
+	esac
+}
+
 get_vbox_version() {
-	local vbox_version="$(VBoxManage -v 2>/dev/null | sed 's/[A-Za-z_].*$//g')"
+	local vbox_version="$($vboxbin -v 2>/dev/null | sed 's/[A-Za-z_].*$//g')"
 	echo $vbox_version
 }
 
@@ -82,7 +99,7 @@ download_ext() {
 	url="$(generate_url $vbox_version)"
 	fname="$(generate_name $vbox_version)"
 
-	/usr/bin/wget $url -O $tmpdir/$fname >/dev/null 2>&1
+	curl $url -o $tmpdir/$fname >/dev/null 2>&1
 	if [ $? -ne 0 ]; then
 		echo_error "failed to download extension pack."
 		return 1
@@ -98,11 +115,11 @@ install_ext() {
 
 	fname="$(generate_name $vbox_version)"
 
-	$cmd /usr/bin/VBoxManage extpack install $tmpdir/$fname >/dev/null 2>&1
+	echo "y" | $cmd $vboxbin extpack install $tmpdir/$fname >/dev/null 2>&1
 	if [ $? -ne 0 ]; then
 		if [ $use_force -eq 1 ]; then
 			echo "Forcing installation of the extension pack ..."
-			$cmd /usr/bin/VBoxManage extpack install --replace $tmpdir/$fname >/dev/null 2>&1
+			echo "y" | $cmd $vboxbin extpack install --replace $tmpdir/$fname >/dev/null 2>&1
 			if [ $? -ne 0 ]; then
 				return 1
 			fi
@@ -113,8 +130,10 @@ install_ext() {
 	fi
 }
 
-if [ ! -x /usr/bin/VBoxManage ]; then
-	echo_error "/usr/bin/VBoxManage binary not found, exiting."
+vbox_binary
+
+if [ ! -x "$vboxbin" ]; then
+	echo_error "$vboxbin binary not found, exiting."
 	exit 1
 fi
 
@@ -125,7 +144,7 @@ while getopts "hvfd" opt; do
 		  exit 0
 		;;
 		v)
-		  echo "$name $version (VirtualBox $(VBoxManage -v 2>/dev/null))"
+		  echo "$name $version (VirtualBox $($vboxbin -v 2>/dev/null))"
 		  exit 0
 		;;
 		f)
