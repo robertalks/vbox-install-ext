@@ -47,7 +47,7 @@ EOF
 }
 
 vbox_binary() {
-	local os="$(uname -o)"
+	local os="$(uname)"
 
 	case "$os" in
 		Darwin)
