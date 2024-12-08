@@ -73,7 +73,7 @@ generate_name() {
 
 	[ -z "$vbox_version" ] && return 1
 
-	fname="Oracle_VM_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack"
+	fname="Oracle_VirtualBox_Extension_Pack-$vbox_version.vbox-extpack"
 	echo $fname
 }
 
@@ -99,8 +99,8 @@ download_ext() {
 	url="$(generate_url $vbox_version)"
 	fname="$(generate_name $vbox_version)"
 
-	curl $url -o $tmpdir/$fname >/dev/null 2>&1
-	if [ $? -ne 0 ]; then
+	rc=$(curl -sk $url -o $tmpdir/$fname -w '%{http_code}')
+	if [ $rc -ne 200 ]; then
 		echo_error "failed to download extension pack."
 		return 1
 	fi
